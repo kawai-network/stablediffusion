@@ -591,6 +591,20 @@ func (sd *StableDiffusion) ImgGenParamsInit(params *SDImgGenParams) {
 	sd.sdImgGenParamsInit(params)
 }
 
+// SetProgressCallback sets the progress callback function
+func (sd *StableDiffusion) SetProgressCallback(cb func(step int, steps int, time float32, data interface{}), data interface{}) {
+	if cb == nil {
+		sd.sdSetProgressCallback(nil, nil)
+		return
+	}
+
+	cCallback := func(step int32, steps int32, time float32, cData unsafe.Pointer) {
+		cb(int(step), int(steps), time, data)
+	}
+
+	sd.sdSetProgressCallback(cCallback, nil)
+}
+
 func (ctx *SDContext) GenerateImage(params *SDImgGenParams) *SDImage {
 	return ctx.sd.generateImage(ctx.ptr, params)
 }
