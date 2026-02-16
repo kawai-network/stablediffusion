@@ -78,6 +78,7 @@ jobs:
 
       - name: Download Test Model (if URL provided)
         if: github.event.inputs.model_url != ''
+        shell: bash
         run: |
           echo "Downloading test model..."
           mkdir -p models
@@ -87,6 +88,21 @@ jobs:
             wget -q -O models/test-model.gguf "${{ github.event.inputs.model_url }}"
           fi
           ls -lh models/
+          
+      - name: Download Default Test Model
+        if: github.event.inputs.model_url == ''
+        shell: bash
+        run: |
+          echo "Downloading default test model (flux-schnell-q2_k)..."
+          mkdir -p models
+          # Download a small quantized model for testing
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            curl -L -o models/flux-schnell-q2_k.gguf "https://huggingface.co/city96/FLUX.1-schnell-gguf/resolve/main/flux1-schnell-q2_k.gguf"
+          else
+            wget -q --show-progress -O models/flux-schnell-q2_k.gguf "https://huggingface.co/city96/FLUX.1-schnell-gguf/resolve/main/flux1-schnell-q2_k.gguf"
+          fi
+          ls -lh models/
+          echo "MODEL_PATH=models/flux-schnell-q2_k.gguf" >> $GITHUB_ENV
 
       - name: Run Integration Tests
         timeout-minutes: 15
