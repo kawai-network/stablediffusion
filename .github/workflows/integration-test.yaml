@@ -96,15 +96,15 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || inputs.model_url == ''
         shell: bash
         run: |
-          echo "Downloading SD Turbo safetensors (~2.1GB)..."
+          echo "Downloading SD 1.5 pruned-emaonly safetensors (~4GB)..."
           mkdir -p models
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            curl -L -o models/sd-turbo.safetensors "https://huggingface.co/stabilityai/sd-turbo/resolve/main/sd_turbo.safetensors"
+            curl -L -o models/v1-5-pruned-emaonly.safetensors "https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors"
           else
-            wget -q --show-progress -O models/sd-turbo.safetensors "https://huggingface.co/stabilityai/sd-turbo/resolve/main/sd_turbo.safetensors"
+            wget -q --show-progress -O models/v1-5-pruned-emaonly.safetensors "https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors"
           fi
           ls -lh models/
-          echo "MODEL_PATH=models/sd-turbo.safetensors" >> $GITHUB_ENV
+          echo "MODEL_PATH=models/v1-5-pruned-emaonly.safetensors" >> $GITHUB_ENV
 
       - name: Run Integration Tests
         timeout-minutes: 15

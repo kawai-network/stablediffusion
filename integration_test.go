@@ -110,7 +110,7 @@ func TestImageGeneration(t *testing.T) {
 	// Check if model exists
 	modelPath := os.Getenv("MODEL_PATH")
 	if modelPath == "" {
-		modelPath = "models/sd-turbo.safetensors"
+		modelPath = "models/v1-5-pruned-emaonly.safetensors"
 	}
 
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
