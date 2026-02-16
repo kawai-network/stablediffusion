@@ -79,7 +79,7 @@ jobs:
           go test -v -run TestLibraryName ./...
 
       - name: Download Test Model (if URL provided)
-        if: github.event.inputs.model_url != ''
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.model_url != ''
         shell: bash
         run: |
           echo "Downloading custom test model..."
@@ -93,12 +93,11 @@ jobs:
           echo "MODEL_PATH=models/test-model.gguf" >> $GITHUB_ENV
           
       - name: Download Default Test Model
-        if: github.event.inputs.model_url == ''
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.model_url == '')
         shell: bash
         run: |
           echo "Downloading SD 1.5 pruned-emaonly safetensors (~4GB)..."
           mkdir -p models
-          # Download SD 1.5 safetensors - this is a complete model that works with stable-diffusion.cpp
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             curl -L -o models/v1-5-pruned-emaonly.safetensors "https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors"
           else
