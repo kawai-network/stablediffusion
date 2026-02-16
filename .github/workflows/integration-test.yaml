@@ -45,9 +45,9 @@ jobs:
         run: |
           echo "Downloading stable-diffusion.cpp for Linux..."
           mkdir -p native
-          wget -q https://github.com/leejet/stable-diffusion.cpp/releases/download/master-453-4ff2c8c/sd-master-453-4ff2c8c-bin-ubuntu-x64.zip
-          unzip -q sd-master-453-4ff2c8c-bin-ubuntu-x64.zip
-          cp libstable-diffusion.so native/
+          wget -q https://github.com/leejet/stable-diffusion.cpp/releases/download/master-453-4ff2c8c/sd-master-4ff2c8c-bin-Linux-x64.zip
+          unzip -q sd-master-4ff2c8c-bin-Linux-x64.zip
+          cp bin/libstable-diffusion.so native/ || cp libstable-diffusion.so native/
           ls -la native/
           
       - name: Download stable-diffusion.cpp (macOS)
@@ -55,9 +55,9 @@ jobs:
         run: |
           echo "Downloading stable-diffusion.cpp for macOS..."
           mkdir -p native
-          wget -q https://github.com/leejet/stable-diffusion.cpp/releases/download/master-453-4ff2c8c/sd-master-453-4ff2c8c-bin-macos-arm64.zip
-          unzip -q sd-master-453-4ff2c8c-bin-macos-arm64.zip
-          cp libstable-diffusion.dylib native/
+          wget -q https://github.com/leejet/stable-diffusion.cpp/releases/download/master-453-4ff2c8c/sd-master-4ff2c8c-bin-Darwin-arm64.zip
+          unzip -q sd-master-4ff2c8c-bin-Darwin-arm64.zip
+          cp bin/libstable-diffusion.dylib native/ || cp libstable-diffusion.dylib native/
           ls -la native/
           
       - name: Download stable-diffusion.cpp (Windows)
@@ -66,9 +66,9 @@ jobs:
         run: |
           echo "Downloading stable-diffusion.cpp for Windows..."
           mkdir -p native
-          curl -L -o sd-windows.zip https://github.com/leejet/stable-diffusion.cpp/releases/download/master-453-4ff2c8c/sd-master-453-4ff2c8c-bin-win-x64.zip
+          curl -L -o sd-windows.zip https://github.com/leejet/stable-diffusion.cpp/releases/download/master-453-4ff2c8c/sd-master-4ff2c8c-bin-win-avx2-x64.zip
           unzip -q sd-windows.zip
-          cp stable-diffusion.dll native/
+          cp bin/stable-diffusion.dll native/ || cp stable-diffusion.dll native/
           ls -la native/
 
       - name: Test Library Loading
