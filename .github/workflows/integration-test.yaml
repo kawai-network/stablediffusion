@@ -40,6 +40,37 @@ jobs:
       - name: Build package
         run: go build -v ./...
 
+      - name: Download stable-diffusion.cpp (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          echo "Downloading stable-diffusion.cpp for Linux..."
+          mkdir -p native
+          wget -q https://github.com/leejet/stable-diffusion.cpp/releases/download/master-453-4ff2c8c/sd-master-453-4ff2c8c-bin-ubuntu-x64.zip
+          unzip -q sd-master-453-4ff2c8c-bin-ubuntu-x64.zip
+          cp libstable-diffusion.so native/
+          ls -la native/
+          
+      - name: Download stable-diffusion.cpp (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          echo "Downloading stable-diffusion.cpp for macOS..."
+          mkdir -p native
+          wget -q https://github.com/leejet/stable-diffusion.cpp/releases/download/master-453-4ff2c8c/sd-master-453-4ff2c8c-bin-macos-arm64.zip
+          unzip -q sd-master-453-4ff2c8c-bin-macos-arm64.zip
+          cp libstable-diffusion.dylib native/
+          ls -la native/
+          
+      - name: Download stable-diffusion.cpp (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          echo "Downloading stable-diffusion.cpp for Windows..."
+          mkdir -p native
+          curl -L -o sd-windows.zip https://github.com/leejet/stable-diffusion.cpp/releases/download/master-453-4ff2c8c/sd-master-453-4ff2c8c-bin-win-x64.zip
+          unzip -q sd-windows.zip
+          cp stable-diffusion.dll native/
+          ls -la native/
+
       - name: Test Library Loading
         run: |
           echo "Testing library loading..."
@@ -61,8 +92,8 @@ jobs:
         timeout-minutes: 15
         run: |
           echo "Running integration tests..."
-          TEST_TIMEOUT=$${TEST_TIMEOUT:-15}
-          go test -v -run TestIntegration -timeout $${TEST_TIMEOUT}m ./...
+          ls -la native/ || true
+          go test -v -run TestIntegration -timeout ${{ github.event.inputs.test_timeout || 15 }}m ./...
 
       - name: Test Summary
         if: always()
