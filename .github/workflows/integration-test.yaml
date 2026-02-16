@@ -58,10 +58,11 @@ jobs:
           ls -lh models/
 
       - name: Run Integration Tests
-        timeout-minutes: ${{ github.event.inputs.test_timeout }}
+        timeout-minutes: 15
         run: |
           echo "Running integration tests..."
-          go test -v -run TestIntegration -timeout ${{ github.event.inputs.test_timeout }}m ./...
+          TEST_TIMEOUT=$${TEST_TIMEOUT:-15}
+          go test -v -run TestIntegration -timeout $${TEST_TIMEOUT}m ./...
 
       - name: Test Summary
         if: always()
