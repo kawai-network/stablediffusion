@@ -624,3 +624,145 @@ func (sd *StableDiffusion) Version() string {
 func (sd *StableDiffusion) Commit() string {
 	return CGoString(sd.sdCommit())
 }
+
+// GetDefaultSampleMethod gets the default sample method for the context
+func (sd *StableDiffusion) GetDefaultSampleMethod(ctx *SDContext) SampleMethod {
+	return sd.sdGetDefaultSampleMethod(ctx.ptr)
+}
+
+// GetDefaultScheduler gets the default scheduler for the context and sample method
+func (sd *StableDiffusion) GetDefaultScheduler(ctx *SDContext, sampleMethod SampleMethod) Scheduler {
+	return sd.sdGetDefaultScheduler(ctx.ptr, sampleMethod)
+}
+
+// NewUpscalerContext creates a new upscaler context
+func (sd *StableDiffusion) NewUpscalerContext(esrganPath string, offloadParamsToCPU bool, direct bool, nThreads int32, tileSize int32) (*UpscalerContext, error) {
+	cPath := CString(esrganPath)
+	defer FreeCString(cPath)
+
+	ptr := sd.newUpscalerContext(cPath, offloadParamsToCPU, direct, nThreads, tileSize)
+	if ptr == nil {
+		return nil, fmt.Errorf("failed to create upscaler context")
+	}
+	return &UpscalerContext{ptr: ptr, sd: sd}, nil
+}
+
+// CacheParamsInit initializes cache parameters
+func (sd *StableDiffusion) CacheParamsInit(params *SDCacheParams) {
+	sd.sdCacheParamsInit(params)
+}
+
+// PreprocessCanny preprocesses image with Canny edge detection
+func (sd *StableDiffusion) PreprocessCanny(image SDImage, highThreshold, lowThreshold, weak, strong float32, inverse bool) bool {
+	return sd.preprocessCanny(&image, highThreshold, lowThreshold, weak, strong, inverse)
+}
+
+// Convenience variables for package-level access (requires library to be loaded)
+// These are shortcuts that delegate to a default instance once initialized
+
+var defaultSD *StableDiffusion
+
+// SetDefaultInstance sets the default StableDiffusion instance for package-level functions
+func SetDefaultInstance(sd *StableDiffusion) {
+	defaultSD = sd
+}
+
+// ContextParamsInit initializes context parameters using default instance
+func ContextParamsInit(params *SDContextParams) {
+	if defaultSD != nil {
+		defaultSD.ContextParamsInit(params)
+	}
+}
+
+// NewContext creates a new context using default instance
+func NewContext(params *SDContextParams) (*SDContext, error) {
+	if defaultSD == nil {
+		return nil, fmt.Errorf("no default StableDiffusion instance set")
+	}
+	return defaultSD.NewContext(params)
+}
+
+// ImgGenParamsInit initializes image generation parameters using default instance
+func ImgGenParamsInit(params *SDImgGenParams) {
+	if defaultSD != nil {
+		defaultSD.ImgGenParamsInit(params)
+	}
+}
+
+// VidGenParamsInit initializes video generation parameters using default instance
+func VidGenParamsInit(params *SDVidGenParams) {
+	if defaultSD != nil {
+		defaultSD.VidGenParamsInit(params)
+	}
+}
+
+// SampleParamsInit initializes sample parameters using default instance
+func SampleParamsInit(params *SDSampleParams) {
+	if defaultSD != nil {
+		defaultSD.SampleParamsInit(params)
+	}
+}
+
+// CacheParamsInit initializes cache parameters using default instance
+func CacheParamsInit(params *SDCacheParams) {
+	if defaultSD != nil {
+		defaultSD.sdCacheParamsInit(params)
+	}
+}
+
+// GenerateImage generates image using default instance
+func GenerateImage(params *SDImgGenParams) *SDImage {
+	if defaultSD == nil {
+		return nil
+	}
+	// Note: This requires a context, so users should use the instance method directly
+	return nil
+}
+
+// PreprocessCanny preprocesses image with Canny edge detection using default instance
+func PreprocessCanny(image SDImage, highThreshold, lowThreshold, weak, strong float32, inverse bool) bool {
+	if defaultSD == nil {
+		return false
+	}
+	return defaultSD.preprocessCanny(&image, highThreshold, lowThreshold, weak, strong, inverse)
+}
+
+// Convert converts model using default instance
+func Convert(inputPath, vaePath, outputPath string, outputType SDType, tensorTypeRules string, convertName bool) (bool, error) {
+	if defaultSD == nil {
+		return false, fmt.Errorf("no default StableDiffusion instance set")
+	}
+	cInputPath := CString(inputPath)
+	cVaePath := CString(vaePath)
+	cOutputPath := CString(outputPath)
+	cTensorTypeRules := CString(tensorTypeRules)
+
+	defer func() {
+		FreeCString(cInputPath)
+		FreeCString(cVaePath)
+		FreeCString(cOutputPath)
+		FreeCString(cTensorTypeRules)
+	}()
+
+	return defaultSD.convert(cInputPath, cVaePath, cOutputPath, outputType, cTensorTypeRules, convertName), nil
+}
+
+// UpscalerContext methods
+
+// Free frees the upscaler context
+func (ctx *UpscalerContext) Free() {
+	if ctx.ptr != nil {
+		ctx.sd.freeUpscalerContext(ctx.ptr)
+		ctx.ptr = nil
+	}
+}
+
+// Upscale upscales an image
+func (ctx *UpscalerContext) Upscale(inputImage SDImage, upscaleFactor uint32) SDImage {
+	return *ctx.sd.upscale(ctx.ptr, &inputImage, upscaleFactor)
+}
+
+// GetUpscaleFactor gets the upscale factor
+func (ctx *UpscalerContext) GetUpscaleFactor() int {
+	return int(ctx.sd.getUpscaleFactor(ctx.ptr))
+}
