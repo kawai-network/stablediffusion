@@ -110,7 +110,7 @@ func TestImageGeneration(t *testing.T) {
 	// Check if model exists
 	modelPath := os.Getenv("MODEL_PATH")
 	if modelPath == "" {
-		modelPath = "models/sd-v1-5-q4_1.gguf"
+		modelPath = "models/sd-turbo.safetensors"
 	}
 
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
@@ -132,13 +132,13 @@ func TestImageGeneration(t *testing.T) {
 
 		params.DiffusionModelPath = CString(modelPath)
 		params.NThreads = -1
-		params.WType = SDTypeQ4_1
+		params.WType = SDTypeF32
 
 		t.Logf("Creating context with model: %s", modelPath)
 
 		ctx, err := sd.NewContext(&params)
 		if err != nil {
-			t.Skipf("Failed to create context: %v - model may be incomplete or incompatible", err)
+			t.Fatalf("Failed to create context: %v", err)
 		}
 		defer ctx.Free()
 
@@ -151,13 +151,13 @@ func TestImageGeneration(t *testing.T) {
 
 		ctxParams.DiffusionModelPath = CString(modelPath)
 		ctxParams.NThreads = -1
-		ctxParams.WType = SDTypeQ4_1
+		ctxParams.WType = SDTypeF32
 
 		t.Logf("Creating context with model: %s", modelPath)
 
 		ctx, err := sd.NewContext(&ctxParams)
 		if err != nil {
-			t.Skipf("Failed to create context: %v - model may be incomplete or incompatible", err)
+			t.Fatalf("Failed to create context: %v", err)
 		}
 		defer ctx.Free()
 
@@ -243,13 +243,13 @@ func TestVideoGeneration(t *testing.T) {
 
 		params.DiffusionModelPath = CString(videoModelPath)
 		params.NThreads = -1
-		params.WType = SDTypeQ4_1
+		params.WType = SDTypeF32
 
 		t.Logf("Creating video context with model: %s", videoModelPath)
 
 		ctx, err := sd.NewContext(&params)
 		if err != nil {
-			t.Skipf("Failed to create video context: %v - model may be incomplete or incompatible", err)
+			t.Fatalf("Failed to create video context: %v", err)
 		}
 		defer ctx.Free()
 
@@ -262,13 +262,13 @@ func TestVideoGeneration(t *testing.T) {
 
 		ctxParams.DiffusionModelPath = CString(videoModelPath)
 		ctxParams.NThreads = -1
-		ctxParams.WType = SDTypeQ4_1
+		ctxParams.WType = SDTypeF32
 
 		t.Logf("Creating video context with model: %s", videoModelPath)
 
 		ctx, err := sd.NewContext(&ctxParams)
 		if err != nil {
-			t.Skipf("Failed to create video context: %v - model may be incomplete or incompatible", err)
+			t.Fatalf("Failed to create video context: %v", err)
 		}
 		defer ctx.Free()
 
@@ -316,11 +316,11 @@ func TestVideoGeneration(t *testing.T) {
 
 		ctxParams.DiffusionModelPath = CString(videoModelPath)
 		ctxParams.NThreads = -1
-		ctxParams.WType = SDTypeQ4_1
+		ctxParams.WType = SDTypeF32
 
 		ctx, err := sd.NewContext(&ctxParams)
 		if err != nil {
-			t.Skipf("Failed to create video context: %v - model may be incomplete or incompatible", err)
+			t.Fatalf("Failed to create video context: %v", err)
 		}
 		defer ctx.Free()
 
