@@ -1,0 +1,69 @@
+name: Integration Test - Image Generation
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_url:
+        description: 'URL to download test model (optional)'
+        required: false
+        default: ''
+      test_timeout:
+        description: 'Test timeout in minutes'
+        required: false
+        default: '15'
+
+jobs:
+  integration-test:
+    name: Image Generation Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.5'
+          cache: true
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build package
+        run: go build -v ./...
+
+      - name: Test Library Loading
+        run: |
+          echo "Testing library loading..."
+          go test -v -run TestLibraryName ./...
+
+      - name: Download Test Model (if URL provided)
+        if: github.event.inputs.model_url != ''
+        run: |
+          echo "Downloading test model..."
+          mkdir -p models
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            curl -L -o models/test-model.gguf "${{ github.event.inputs.model_url }}"
+          else
+            wget -q -O models/test-model.gguf "${{ github.event.inputs.model_url }}"
+          fi
+          ls -lh models/
+
+      - name: Run Integration Tests
+        timeout-minutes: ${{ github.event.inputs.test_timeout }}
+        run: |
+          echo "Running integration tests..."
+          go test -v -run TestIntegration -timeout ${{ github.event.inputs.test_timeout }}m ./...
+
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "Integration test completed on ${{ matrix.os }}"
