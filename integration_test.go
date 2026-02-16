@@ -110,11 +110,11 @@ func TestImageGeneration(t *testing.T) {
 	// Check if model exists
 	modelPath := os.Getenv("MODEL_PATH")
 	if modelPath == "" {
-		modelPath = "models/flux-schnell-q2_k.gguf"
+		modelPath = "models/sd-v1-5-q4_1.gguf"
 	}
 
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
-		t.Skipf("Model not found at %s, skipping image generation test", modelPath)
+		t.Fatalf("Model not found at %s - image generation test requires model", modelPath)
 	}
 
 	// Load library
@@ -134,7 +134,7 @@ func TestImageGeneration(t *testing.T) {
 		// Set model path
 		params.DiffusionModelPath = CString(modelPath)
 		params.NThreads = -1 // Use all available threads
-		params.WType = SDTypeQ2_K
+		params.WType = SDTypeQ4_1
 
 		t.Logf("Creating context with model: %s", modelPath)
 
@@ -155,7 +155,9 @@ func TestImageGeneration(t *testing.T) {
 
 		ctxParams.DiffusionModelPath = CString(modelPath)
 		ctxParams.NThreads = -1
-		ctxParams.WType = SDTypeQ2_K
+		ctxParams.WType = SDTypeQ4_1
+
+		t.Logf("Creating context with model: %s", modelPath)
 
 		// Create context
 		ctx, err := sd.NewContext(&ctxParams)
@@ -164,14 +166,16 @@ func TestImageGeneration(t *testing.T) {
 		}
 		defer ctx.Free()
 
+		t.Log("Context created successfully")
+
 		// Initialize image generation parameters
 		var imgParams SDImgGenParams
 		sd.ImgGenParamsInit(&imgParams)
 
-		imgParams.Prompt = CString("a beautiful sunset")
-		imgParams.NegativePrompt = CString("")
-		imgParams.Width = 256
-		imgParams.Height = 256
+		imgParams.Prompt = CString("a beautiful sunset over the ocean")
+		imgParams.NegativePrompt = CString("blurry, bad quality")
+		imgParams.Width = 512
+		imgParams.Height = 512
 		imgParams.Seed = 42
 		imgParams.BatchCount = 1
 
@@ -179,9 +183,11 @@ func TestImageGeneration(t *testing.T) {
 		sd.SampleParamsInit(&imgParams.SampleParams)
 		imgParams.SampleParams.SampleMethod = EulerASampleMethod
 		imgParams.SampleParams.Scheduler = DiscreteScheduler
-		imgParams.SampleParams.SampleSteps = 4 // Minimal steps for quick test
+		imgParams.SampleParams.SampleSteps = 20      // Standard steps for SD 1.5
+		imgParams.SampleParams.Guidance.TxtCfg = 7.5 // Standard CFG for SD 1.5
 
-		t.Logf("Generating 256x256 image with prompt: 'a beautiful sunset'")
+		t.Logf("Generating 512x512 image with prompt: 'a beautiful sunset over the ocean'")
+		t.Logf("Using %d sampling steps with CFG scale %.1f", imgParams.SampleParams.SampleSteps, imgParams.SampleParams.Guidance.TxtCfg)
 
 		// Generate image
 		result := ctx.GenerateImage(&imgParams)
@@ -190,14 +196,18 @@ func TestImageGeneration(t *testing.T) {
 			t.Fatal("Image generation returned nil")
 		}
 
-		if result.Width != 256 || result.Height != 256 {
-			t.Errorf("Expected 256x256 image, got %dx%d", result.Width, result.Height)
+		if result.Width != 512 || result.Height != 512 {
+			t.Errorf("Expected 512x512 image, got %dx%d", result.Width, result.Height)
 		}
 
 		if result.Data == nil {
 			t.Error("Image data is nil")
 		}
 
-		t.Logf("Image generated successfully: %dx%d, %d channels", result.Width, result.Height, result.Channel)
+		if result.Channel != 3 {
+			t.Errorf("Expected 3 channels (RGB), got %d", result.Channel)
+		}
+
+		t.Logf("✓ Image generated successfully: %dx%d, %d channels", result.Width, result.Height, result.Channel)
 	})
 }

@@ -89,6 +89,21 @@ jobs:
           fi
           ls -lh models/
           echo "MODEL_PATH=models/test-model.gguf" >> $GITHUB_ENV
+          
+      - name: Download Default Test Model
+        if: github.event.inputs.model_url == ''
+        shell: bash
+        run: |
+          echo "Downloading default test model (SD 1.5 Q4_1 ~1.57GB)..."
+          mkdir -p models
+          # Download SD 1.5 Q4_1 quantized model for testing
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            curl -L -o models/sd-v1-5-q4_1.gguf "https://huggingface.co/second-state/stable-diffusion-v1-5-GGUF/resolve/main/stable-diffusion-v1-5-pruned-emaonly-Q4_1.gguf"
+          else
+            wget -q --show-progress -O models/sd-v1-5-q4_1.gguf "https://huggingface.co/second-state/stable-diffusion-v1-5-GGUF/resolve/main/stable-diffusion-v1-5-pruned-emaonly-Q4_1.gguf"
+          fi
+          ls -lh models/
+          echo "MODEL_PATH=models/sd-v1-5-q4_1.gguf" >> $GITHUB_ENV
 
       - name: Run Integration Tests
         timeout-minutes: 15
@@ -96,7 +111,11 @@ jobs:
         run: |
           echo "Running integration tests..."
           ls -la native/ || true
+          echo "Running TestIntegration (library loading)..."
           go test -v -run TestIntegration -timeout ${{ github.event.inputs.test_timeout || 15 }}m ./...
+          echo ""
+          echo "Running TestImageGeneration (actual image generation)..."
+          go test -v -run TestImageGeneration -timeout ${{ github.event.inputs.test_timeout || 15 }}m ./...
 
       - name: Test Summary
         if: always()
