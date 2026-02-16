@@ -79,21 +79,21 @@ jobs:
           go test -v -run TestLibraryName ./...
 
       - name: Download Test Model (if URL provided)
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.model_url != ''
+        if: github.event_name == 'workflow_dispatch' && inputs.model_url != ''
         shell: bash
         run: |
           echo "Downloading custom test model..."
           mkdir -p models
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            curl -L -o models/test-model.gguf "${{ github.event.inputs.model_url }}"
+            curl -L -o models/test-model.gguf "${{ inputs.model_url }}"
           else
-            wget -q --show-progress -O models/test-model.gguf "${{ github.event.inputs.model_url }}"
+            wget -q --show-progress -O models/test-model.gguf "${{ inputs.model_url }}"
           fi
           ls -lh models/
           echo "MODEL_PATH=models/test-model.gguf" >> $GITHUB_ENV
           
       - name: Download Default Test Model
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.model_url == '')
+        if: github.event_name != 'workflow_dispatch' || inputs.model_url == ''
         shell: bash
         run: |
           echo "Downloading SD 1.5 pruned-emaonly safetensors (~4GB)..."
@@ -113,10 +113,10 @@ jobs:
           echo "Running integration tests..."
           ls -la native/ || true
           echo "Running TestIntegration (library loading)..."
-          go test -v -run TestIntegration -timeout ${{ github.event.inputs.test_timeout || 15 }}m ./...
+          go test -v -run TestIntegration -timeout ${{ inputs.test_timeout || 15 }}m ./...
           echo ""
           echo "Running TestImageGeneration (actual image generation)..."
-          go test -v -run TestImageGeneration -timeout ${{ github.event.inputs.test_timeout || 15 }}m ./...
+          go test -v -run TestImageGeneration -timeout ${{ inputs.test_timeout || 15 }}m ./...
 
       - name: Test Summary
         if: always()
