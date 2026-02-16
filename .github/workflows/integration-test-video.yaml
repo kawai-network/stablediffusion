@@ -1,20 +1,20 @@
-name: Integration Test - Image Generation
+name: Integration Test - Video Generation
 
 on:
   workflow_dispatch:
     inputs:
       model_url:
-        description: 'URL to download test model (optional)'
+        description: 'URL to download test video model (optional)'
         required: false
         default: ''
       test_timeout:
         description: 'Test timeout in minutes'
         required: false
-        default: '15'
+        default: '30'
 
 jobs:
-  integration-test:
-    name: Image Generation Test on ${{ matrix.os }}
+  integration-test-video:
+    name: Video Generation Test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -80,44 +80,43 @@ jobs:
         if: github.event.inputs.model_url != ''
         shell: bash
         run: |
-          echo "Downloading custom test model..."
+          echo "Downloading custom test video model..."
           mkdir -p models
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            curl -L -o models/test-model.gguf "${{ github.event.inputs.model_url }}"
+            curl -L -o models/test-video-model.gguf "${{ github.event.inputs.model_url }}"
           else
-            wget -q --show-progress -O models/test-model.gguf "${{ github.event.inputs.model_url }}"
+            wget -q --show-progress -O models/test-video-model.gguf "${{ github.event.inputs.model_url }}"
           fi
           ls -lh models/
-          echo "MODEL_PATH=models/test-model.gguf" >> $GITHUB_ENV
+          echo "VIDEO_MODEL_PATH=models/test-video-model.gguf" >> $GITHUB_ENV
           
-      - name: Download Default Test Model
+      - name: Download Default Video Model (SVD)
         if: github.event.inputs.model_url == ''
         shell: bash
         run: |
-          echo "Downloading SD 1.5 pruned-emaonly safetensors (~4GB)..."
+          echo "Downloading default video model (SVD 1.5 Q4_1 ~4.2GB)..."
           mkdir -p models
-          # Download SD 1.5 safetensors - this is a complete model that works with stable-diffusion.cpp
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            curl -L -o models/v1-5-pruned-emaonly.safetensors "https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors"
+            curl -L -o models/svd-1-5-q4_1.gguf "https://huggingface.co/second-state/Stable-Video-Diffusion-Img2Vid-GGUF/resolve/main/svd-xt-1-1-Q4_1.gguf"
           else
-            wget -q --show-progress -O models/v1-5-pruned-emaonly.safetensors "https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors"
+            wget -q --show-progress -O models/svd-1-5-q4_1.gguf "https://huggingface.co/second-state/Stable-Video-Diffusion-Img2Vid-GGUF/resolve/main/svd-xt-1-1-Q4_1.gguf"
           fi
           ls -lh models/
-          echo "MODEL_PATH=models/v1-5-pruned-emaonly.safetensors" >> $GITHUB_ENV
+          echo "VIDEO_MODEL_PATH=models/svd-1-5-q4_1.gguf" >> $GITHUB_ENV
 
-      - name: Run Integration Tests
-        timeout-minutes: 15
+      - name: Run Video Integration Tests
+        timeout-minutes: 30
         shell: bash
         run: |
-          echo "Running integration tests..."
+          echo "Running video integration tests..."
           ls -la native/ || true
           echo "Running TestIntegration (library loading)..."
-          go test -v -run TestIntegration -timeout ${{ github.event.inputs.test_timeout || 15 }}m ./...
+          go test -v -run TestIntegration -timeout 5m ./...
           echo ""
-          echo "Running TestImageGeneration (actual image generation)..."
-          go test -v -run TestImageGeneration -timeout ${{ github.event.inputs.test_timeout || 15 }}m ./...
+          echo "Running TestVideoGeneration (actual video generation)..."
+          go test -v -run TestVideoGeneration -timeout ${{ github.event.inputs.test_timeout || 30 }}m ./...
 
       - name: Test Summary
         if: always()
         run: |
-          echo "Integration test completed on ${{ matrix.os }}"
+          echo "Video integration test completed on ${{ matrix.os }}"
