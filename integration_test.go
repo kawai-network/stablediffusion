@@ -130,9 +130,9 @@ func TestImageGeneration(t *testing.T) {
 		var params SDContextParams
 		sd.ContextParamsInit(&params)
 
-		params.DiffusionModelPath = CString(modelPath)
+		params.ModelPath = CString(modelPath)
 		params.NThreads = -1
-		params.WType = SDTypeF32
+		params.EnableMmap = true
 
 		t.Logf("Creating context with model: %s", modelPath)
 
@@ -149,9 +149,9 @@ func TestImageGeneration(t *testing.T) {
 		var ctxParams SDContextParams
 		sd.ContextParamsInit(&ctxParams)
 
-		ctxParams.DiffusionModelPath = CString(modelPath)
+		ctxParams.ModelPath = CString(modelPath)
 		ctxParams.NThreads = -1
-		ctxParams.WType = SDTypeF32
+		ctxParams.EnableMmap = true
 
 		t.Logf("Creating context with model: %s", modelPath)
 

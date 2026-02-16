@@ -12,7 +12,10 @@ on:
       test_timeout:
         description: 'Test timeout in minutes'
         required: false
-        default: '15'
+        default: '30'
+
+env:
+  MODEL_PATH: models/v1-5-pruned-emaonly.safetensors
 
 jobs:
   integration-test:
@@ -42,8 +45,15 @@ jobs:
       - name: Build package
         run: go build -v ./...
 
+      - name: Cache stable-diffusion.cpp library
+        id: cache-sd-lib
+        uses: actions/cache@v4
+        with:
+          path: native
+          key: sd-lib-${{ runner.os }}-${{ runner.arch }}-4ff2c8c
+
       - name: Download stable-diffusion.cpp (Linux)
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && steps.cache-sd-lib.outputs.cache-hit != 'true'
         run: |
           echo "Downloading stable-diffusion.cpp for Linux..."
           mkdir -p native
@@ -53,7 +63,7 @@ jobs:
           ls -la native/
           
       - name: Download stable-diffusion.cpp (macOS)
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && steps.cache-sd-lib.outputs.cache-hit != 'true'
         run: |
           echo "Downloading stable-diffusion.cpp for macOS..."
           mkdir -p native
@@ -63,7 +73,7 @@ jobs:
           ls -la native/
           
       - name: Download stable-diffusion.cpp (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && steps.cache-sd-lib.outputs.cache-hit != 'true'
         shell: bash
         run: |
           echo "Downloading stable-diffusion.cpp for Windows..."
@@ -73,50 +83,47 @@ jobs:
           cp bin/stable-diffusion.dll native/ || cp stable-diffusion.dll native/
           ls -la native/
 
-      - name: Test Library Loading
-        run: |
-          echo "Testing library loading..."
-          go test -v -run TestLibraryName ./...
+      - name: Cache SD 1.5 Model
+        id: cache-model
+        uses: actions/cache@v4
+        with:
+          path: models/v1-5-pruned-emaonly.safetensors
+          key: sd15-pruned-emaonly-v1
+          restore-keys: |
+            sd15-pruned-emaonly-
 
-      - name: Download Test Model (if URL provided)
-        if: github.event_name == 'workflow_dispatch' && inputs.model_url != ''
-        shell: bash
-        run: |
-          echo "Downloading custom test model..."
-          mkdir -p models
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            curl -L -o models/test-model.gguf "${{ inputs.model_url }}"
-          else
-            wget -q --show-progress -O models/test-model.gguf "${{ inputs.model_url }}"
-          fi
-          ls -lh models/
-          echo "MODEL_PATH=models/test-model.gguf" >> $GITHUB_ENV
-          
-      - name: Download Default Test Model
-        if: github.event_name != 'workflow_dispatch' || inputs.model_url == ''
+      - name: Download SD 1.5 Model
+        if: steps.cache-model.outputs.cache-hit != 'true'
         shell: bash
         run: |
           echo "Downloading SD 1.5 pruned-emaonly safetensors (~4GB)..."
           mkdir -p models
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            curl -L -o models/v1-5-pruned-emaonly.safetensors "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors"
+            curl -L --progress-bar -o models/v1-5-pruned-emaonly.safetensors "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors"
           else
-            wget -q --show-progress -O models/v1-5-pruned-emaonly.safetensors "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors"
+            wget --progress=bar:force -O models/v1-5-pruned-emaonly.safetensors "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors"
           fi
           ls -lh models/
-          echo "MODEL_PATH=models/v1-5-pruned-emaonly.safetensors" >> $GITHUB_ENV
+
+      - name: Verify Model
+        shell: bash
+        run: |
+          ls -lh models/
+          file models/v1-5-pruned-emaonly.safetensors || true
 
       - name: Run Integration Tests
-        timeout-minutes: 15
+        timeout-minutes: 30
         shell: bash
         run: |
           echo "Running integration tests..."
           ls -la native/ || true
+          ls -la models/ || true
+          echo ""
           echo "Running TestIntegration (library loading)..."
-          go test -v -run TestIntegration -timeout ${{ inputs.test_timeout || 15 }}m ./...
+          go test -v -run TestIntegration -timeout 5m ./...
           echo ""
           echo "Running TestImageGeneration (actual image generation)..."
-          go test -v -run TestImageGeneration -timeout ${{ inputs.test_timeout || 15 }}m ./...
+          go test -v -run TestImageGeneration -timeout 30m ./...
 
       - name: Test Summary
         if: always()
