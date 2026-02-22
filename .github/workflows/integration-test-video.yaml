@@ -96,12 +96,20 @@ jobs:
         run: |
           echo "Downloading default video model (SVD 1.5 Q4_1 ~4.2GB)..."
           mkdir -p models
+          set +e
           curl --fail --location --retry 5 --retry-delay 5 --retry-connrefused \
             -A "Mozilla/5.0" \
             -o models/svd-1-5-q4_1.gguf \
             "https://huggingface.co/second-state/Stable-Video-Diffusion-Img2Vid-GGUF/resolve/main/svd-xt-1-1-Q4_1.gguf?download=true"
-          ls -lh models/
-          echo "VIDEO_MODEL_PATH=models/svd-1-5-q4_1.gguf" >> $GITHUB_ENV
+          RC=$?
+          set -e
+
+          if [[ $RC -eq 0 ]]; then
+            ls -lh models/
+            echo "VIDEO_MODEL_PATH=models/svd-1-5-q4_1.gguf" >> $GITHUB_ENV
+          else
+            echo "::warning::Default video model download failed (curl exit $RC). TestVideoGeneration will be skipped."
+          fi
 
       - name: Run Video Integration Tests
         timeout-minutes: 30
@@ -112,8 +120,12 @@ jobs:
           echo "Running TestIntegration (library loading)..."
           go test -v -run TestIntegration -timeout 5m ./...
           echo ""
-          echo "Running TestVideoGeneration (actual video generation)..."
-          go test -v -run TestVideoGeneration -timeout ${{ github.event.inputs.test_timeout || 30 }}m ./...
+          if [[ -n "${VIDEO_MODEL_PATH:-}" && -f "${VIDEO_MODEL_PATH}" ]]; then
+            echo "Running TestVideoGeneration (actual video generation)..."
+            go test -v -run TestVideoGeneration -timeout ${{ github.event.inputs.test_timeout || 30 }}m ./...
+          else
+            echo "Skipping TestVideoGeneration: VIDEO_MODEL_PATH not available."
+          fi
 
       - name: Test Summary
         if: always()
