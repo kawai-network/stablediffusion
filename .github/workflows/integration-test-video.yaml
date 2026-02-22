@@ -1,6 +1,8 @@
 name: Integration Test - Video Generation
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       model_url:
@@ -79,6 +81,17 @@ jobs:
           echo "Testing library loading..."
           go test -v -run TestLibraryName ./...
 
+      - name: Resolve Model URL
+        shell: bash
+        run: |
+          MODEL_URL="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.model_url || vars.VIDEO_MODEL_URL }}"
+          if [[ -z "$MODEL_URL" ]]; then
+            echo "::error::Model URL is required. Set workflow_dispatch input model_url or repository variable VIDEO_MODEL_URL."
+            exit 1
+          fi
+          echo "MODEL_URL=$MODEL_URL" >> $GITHUB_ENV
+          echo "Using model URL source: $MODEL_URL"
+
       - name: Download Test Model
         shell: bash
         run: |
@@ -87,10 +100,10 @@ jobs:
           if [[ -n "${{ github.event.inputs.hf_token }}" ]]; then
             curl --fail --location --retry 3 \
               -H "Authorization: Bearer ${{ github.event.inputs.hf_token }}" \
-              -o models/test-video-model "${{ github.event.inputs.model_url }}"
+              -o models/test-video-model "$MODEL_URL"
           else
             curl --fail --location --retry 3 \
-              -o models/test-video-model "${{ github.event.inputs.model_url }}"
+              -o models/test-video-model "$MODEL_URL"
           fi
           ls -lh models/
           echo "VIDEO_MODEL_PATH=models/test-video-model" >> $GITHUB_ENV
