@@ -4,7 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       model_url:
-        description: "URL to download test video model (optional)"
+        description: "URL to download test video model (recommended, e.g. GGUF)"
+        required: false
+        default: ""
+      hf_token:
+        description: "Optional Hugging Face token for gated/private model URLs"
         required: false
         default: ""
       test_timeout:
@@ -82,27 +86,22 @@ jobs:
         run: |
           echo "Downloading custom test video model..."
           mkdir -p models
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            curl -L -o models/test-video-model.gguf "${{ github.event.inputs.model_url }}"
+          if [[ -n "${{ github.event.inputs.hf_token }}" ]]; then
+            curl --fail --location --retry 3 \
+              -H "Authorization: Bearer ${{ github.event.inputs.hf_token }}" \
+              -o models/test-video-model "${{ github.event.inputs.model_url }}"
           else
-            wget -q --show-progress -O models/test-video-model.gguf "${{ github.event.inputs.model_url }}"
+            curl --fail --location --retry 3 \
+              -o models/test-video-model "${{ github.event.inputs.model_url }}"
           fi
           ls -lh models/
-          echo "VIDEO_MODEL_PATH=models/test-video-model.gguf" >> $GITHUB_ENV
+          echo "VIDEO_MODEL_PATH=models/test-video-model" >> $GITHUB_ENV
 
-      - name: Download Default Video Model (SVD)
+      - name: No Default Model
         if: github.event.inputs.model_url == ''
         shell: bash
         run: |
-          echo "Downloading default video model (SVD XT 1.1 ~4.8GB)..."
-          mkdir -p models
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            curl -L -o models/svd_xt_1_1.safetensors "https://huggingface.co/vdo/stable-video-diffusion-img2vid-xt-1-1/resolve/main/svd_xt_1_1.safetensors"
-          else
-            wget -q --show-progress -O models/svd_xt_1_1.safetensors "https://huggingface.co/vdo/stable-video-diffusion-img2vid-xt-1-1/resolve/main/svd_xt_1_1.safetensors"
-          fi
-          ls -lh models/
-          echo "VIDEO_MODEL_PATH=models/svd_xt_1_1.safetensors" >> $GITHUB_ENV
+          echo "::warning::No model_url provided. Workflow will run TestIntegration only and skip TestVideoGeneration."
 
       - name: Run Video Integration Tests
         timeout-minutes: 30
@@ -113,8 +112,12 @@ jobs:
           echo "Running TestIntegration (library loading)..."
           go test -v -run TestIntegration -timeout 5m ./...
           echo ""
-          echo "Running TestVideoGeneration (actual video generation)..."
-          go test -v -run TestVideoGeneration -timeout ${{ github.event.inputs.test_timeout || 30 }}m ./...
+          if [[ -n "${VIDEO_MODEL_PATH:-}" && -f "${VIDEO_MODEL_PATH}" ]]; then
+            echo "Running TestVideoGeneration (actual video generation)..."
+            go test -v -run TestVideoGeneration -timeout ${{ github.event.inputs.test_timeout || 30 }}m ./...
+          else
+            echo "Skipping TestVideoGeneration: VIDEO_MODEL_PATH not available."
+          fi
 
       - name: Test Summary
         if: always()
