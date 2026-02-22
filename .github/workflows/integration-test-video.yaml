@@ -4,9 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       model_url:
-        description: "URL to download test video model (recommended, e.g. GGUF)"
-        required: false
-        default: ""
+        description: "URL to download test video model (required, prefer GGUF)"
+        required: true
       hf_token:
         description: "Optional Hugging Face token for gated/private model URLs"
         required: false
@@ -80,8 +79,7 @@ jobs:
           echo "Testing library loading..."
           go test -v -run TestLibraryName ./...
 
-      - name: Download Test Model (if URL provided)
-        if: github.event.inputs.model_url != ''
+      - name: Download Test Model
         shell: bash
         run: |
           echo "Downloading custom test video model..."
@@ -97,12 +95,6 @@ jobs:
           ls -lh models/
           echo "VIDEO_MODEL_PATH=models/test-video-model" >> $GITHUB_ENV
 
-      - name: No Default Model
-        if: github.event.inputs.model_url == ''
-        shell: bash
-        run: |
-          echo "::warning::No model_url provided. Workflow will run TestIntegration only and skip TestVideoGeneration."
-
       - name: Run Video Integration Tests
         timeout-minutes: 30
         shell: bash
@@ -112,12 +104,8 @@ jobs:
           echo "Running TestIntegration (library loading)..."
           go test -v -run TestIntegration -timeout 5m ./...
           echo ""
-          if [[ -n "${VIDEO_MODEL_PATH:-}" && -f "${VIDEO_MODEL_PATH}" ]]; then
-            echo "Running TestVideoGeneration (actual video generation)..."
-            go test -v -run TestVideoGeneration -timeout ${{ github.event.inputs.test_timeout || 30 }}m ./...
-          else
-            echo "Skipping TestVideoGeneration: VIDEO_MODEL_PATH not available."
-          fi
+          echo "Running TestVideoGeneration (actual video generation)..."
+          go test -v -run TestVideoGeneration -timeout ${{ github.event.inputs.test_timeout || 30 }}m ./...
 
       - name: Test Summary
         if: always()
