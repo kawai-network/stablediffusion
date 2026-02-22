@@ -108,16 +108,21 @@ jobs:
         run: |
           echo "Downloading custom test video model..."
           mkdir -p models
+          MODEL_FILENAME="$(basename "${MODEL_URL%%\?*}")"
+          if [[ -z "$MODEL_FILENAME" || "$MODEL_FILENAME" == "." || "$MODEL_FILENAME" == "/" ]]; then
+            MODEL_FILENAME="test-video-model"
+          fi
+          MODEL_PATH="models/$MODEL_FILENAME"
           if [[ -n "${{ github.event.inputs.hf_token }}" ]]; then
             curl --fail --location --retry 3 \
               -H "Authorization: Bearer ${{ github.event.inputs.hf_token }}" \
-              -o models/test-video-model "$MODEL_URL"
+              -o "$MODEL_PATH" "$MODEL_URL"
           else
             curl --fail --location --retry 3 \
-              -o models/test-video-model "$MODEL_URL"
+              -o "$MODEL_PATH" "$MODEL_URL"
           fi
           ls -lh models/
-          echo "VIDEO_MODEL_PATH=models/test-video-model" >> $GITHUB_ENV
+          echo "VIDEO_MODEL_PATH=$MODEL_PATH" >> $GITHUB_ENV
 
       - name: Download Video VAE (optional)
         if: env.VAE_URL != ''
@@ -125,16 +130,21 @@ jobs:
         run: |
           echo "Downloading video VAE..."
           mkdir -p models
+          VAE_FILENAME="$(basename "${VAE_URL%%\?*}")"
+          if [[ -z "$VAE_FILENAME" || "$VAE_FILENAME" == "." || "$VAE_FILENAME" == "/" ]]; then
+            VAE_FILENAME="test-video-vae"
+          fi
+          VAE_PATH="models/$VAE_FILENAME"
           if [[ -n "${{ github.event.inputs.hf_token }}" ]]; then
             curl --fail --location --retry 3 \
               -H "Authorization: Bearer ${{ github.event.inputs.hf_token }}" \
-              -o models/test-video-vae "$VAE_URL"
+              -o "$VAE_PATH" "$VAE_URL"
           else
             curl --fail --location --retry 3 \
-              -o models/test-video-vae "$VAE_URL"
+              -o "$VAE_PATH" "$VAE_URL"
           fi
           ls -lh models/
-          echo "VIDEO_VAE_PATH=models/test-video-vae" >> $GITHUB_ENV
+          echo "VIDEO_VAE_PATH=$VAE_PATH" >> $GITHUB_ENV
 
       - name: Run Video Integration Tests
         timeout-minutes: 30
