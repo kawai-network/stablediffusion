@@ -6,6 +6,10 @@ on:
       model_url:
         description: "URL to download test video model (required, prefer GGUF)"
         required: true
+      vae_url:
+        description: "Optional URL for VAE when using safetensors video checkpoint"
+        required: false
+        default: ""
       hf_token:
         description: "Optional Hugging Face token for gated/private model URLs"
         required: false
@@ -105,6 +109,23 @@ jobs:
           fi
           ls -lh models/
           echo "VIDEO_MODEL_PATH=models/test-video-model" >> $GITHUB_ENV
+
+      - name: Download Video VAE (optional)
+        if: github.event.inputs.vae_url != ''
+        shell: bash
+        run: |
+          echo "Downloading video VAE..."
+          mkdir -p models
+          if [[ -n "${{ github.event.inputs.hf_token }}" ]]; then
+            curl --fail --location --retry 3 \
+              -H "Authorization: Bearer ${{ github.event.inputs.hf_token }}" \
+              -o models/test-video-vae "${{ github.event.inputs.vae_url }}"
+          else
+            curl --fail --location --retry 3 \
+              -o models/test-video-vae "${{ github.event.inputs.vae_url }}"
+          fi
+          ls -lh models/
+          echo "VIDEO_VAE_PATH=models/test-video-vae" >> $GITHUB_ENV
 
       - name: Run Video Integration Tests
         timeout-minutes: 30

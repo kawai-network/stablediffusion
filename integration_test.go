@@ -3,8 +3,32 @@ package stablediffusion
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func configureVideoContextParams(t *testing.T, params *SDContextParams, videoModelPath string) {
+	t.Helper()
+
+	// Safetensors video checkpoints should be passed via ModelPath.
+	// DiffusionModelPath is kept for GGUF diffusion-only checkpoints.
+	if strings.HasSuffix(strings.ToLower(videoModelPath), ".safetensors") {
+		params.ModelPath = CString(videoModelPath)
+		videoVAEPath := os.Getenv("VIDEO_VAE_PATH")
+		if videoVAEPath == "" {
+			t.Fatalf("VIDEO_VAE_PATH is required when VIDEO_MODEL_PATH is a safetensors checkpoint: %s", videoModelPath)
+		}
+		if _, err := os.Stat(videoVAEPath); os.IsNotExist(err) {
+			t.Fatalf("VIDEO_VAE_PATH file not found at %s", videoVAEPath)
+		}
+		params.VAEPath = CString(videoVAEPath)
+	} else {
+		params.DiffusionModelPath = CString(videoModelPath)
+	}
+
+	params.NThreads = -1
+	params.WType = SDTypeF32
+}
 
 func TestIntegration(t *testing.T) {
 	if testing.Short() {
@@ -241,9 +265,7 @@ func TestVideoGeneration(t *testing.T) {
 		var params SDContextParams
 		sd.ContextParamsInit(&params)
 
-		params.DiffusionModelPath = CString(videoModelPath)
-		params.NThreads = -1
-		params.WType = SDTypeF32
+		configureVideoContextParams(t, &params, videoModelPath)
 
 		t.Logf("Creating video context with model: %s", videoModelPath)
 
@@ -260,9 +282,7 @@ func TestVideoGeneration(t *testing.T) {
 		var ctxParams SDContextParams
 		sd.ContextParamsInit(&ctxParams)
 
-		ctxParams.DiffusionModelPath = CString(videoModelPath)
-		ctxParams.NThreads = -1
-		ctxParams.WType = SDTypeF32
+		configureVideoContextParams(t, &ctxParams, videoModelPath)
 
 		t.Logf("Creating video context with model: %s", videoModelPath)
 
@@ -314,9 +334,7 @@ func TestVideoGeneration(t *testing.T) {
 		var ctxParams SDContextParams
 		sd.ContextParamsInit(&ctxParams)
 
-		ctxParams.DiffusionModelPath = CString(videoModelPath)
-		ctxParams.NThreads = -1
-		ctxParams.WType = SDTypeF32
+		configureVideoContextParams(t, &ctxParams, videoModelPath)
 
 		ctx, err := sd.NewContext(&ctxParams)
 		if err != nil {
