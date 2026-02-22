@@ -91,8 +91,17 @@ jobs:
             echo "::error::Model URL is required. Set workflow_dispatch input model_url or repository variable VIDEO_MODEL_URL."
             exit 1
           fi
+          VAE_URL="${{ github.event.inputs.vae_url }}"
+          # Auto-derive a valid VAE URL for known SVD XT 1.1 safetensors model.
+          if [[ -z "$VAE_URL" && "$MODEL_URL" == *"vdo/stable-video-diffusion-img2vid-xt-1-1/resolve/main/svd_xt_1_1.safetensors"* ]]; then
+            VAE_URL="https://huggingface.co/vdo/stable-video-diffusion-img2vid-xt-1-1/resolve/main/vae/diffusion_pytorch_model.safetensors"
+          fi
           echo "MODEL_URL=$MODEL_URL" >> $GITHUB_ENV
+          echo "VAE_URL=$VAE_URL" >> $GITHUB_ENV
           echo "Using model URL source: $MODEL_URL"
+          if [[ -n "$VAE_URL" ]]; then
+            echo "Using VAE URL source: $VAE_URL"
+          fi
 
       - name: Download Test Model
         shell: bash
@@ -111,7 +120,7 @@ jobs:
           echo "VIDEO_MODEL_PATH=models/test-video-model" >> $GITHUB_ENV
 
       - name: Download Video VAE (optional)
-        if: github.event.inputs.vae_url != ''
+        if: env.VAE_URL != ''
         shell: bash
         run: |
           echo "Downloading video VAE..."
@@ -119,10 +128,10 @@ jobs:
           if [[ -n "${{ github.event.inputs.hf_token }}" ]]; then
             curl --fail --location --retry 3 \
               -H "Authorization: Bearer ${{ github.event.inputs.hf_token }}" \
-              -o models/test-video-vae "${{ github.event.inputs.vae_url }}"
+              -o models/test-video-vae "$VAE_URL"
           else
             curl --fail --location --retry 3 \
-              -o models/test-video-vae "${{ github.event.inputs.vae_url }}"
+              -o models/test-video-vae "$VAE_URL"
           fi
           ls -lh models/
           echo "VIDEO_VAE_PATH=models/test-video-vae" >> $GITHUB_ENV
