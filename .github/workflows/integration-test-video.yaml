@@ -94,15 +94,15 @@ jobs:
         if: github.event.inputs.model_url == ''
         shell: bash
         run: |
-          echo "Downloading default video model (SVD 1.5 Q4_1 ~4.2GB)..."
+          echo "Downloading default video model (SVD XT 1.1 ~4.8GB)..."
           mkdir -p models
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            curl -L -o models/svd-1-5-q4_1.gguf "https://huggingface.co/second-state/Stable-Video-Diffusion-Img2Vid-GGUF/resolve/main/svd-xt-1-1-Q4_1.gguf"
+            curl -L -o models/svd_xt_1_1.safetensors "https://huggingface.co/vdo/stable-video-diffusion-img2vid-xt-1-1/resolve/main/svd_xt_1_1.safetensors"
           else
-            wget -q --show-progress -O models/svd-1-5-q4_1.gguf "https://huggingface.co/second-state/Stable-Video-Diffusion-Img2Vid-GGUF/resolve/main/svd-xt-1-1-Q4_1.gguf"
+            wget -q --show-progress -O models/svd_xt_1_1.safetensors "https://huggingface.co/vdo/stable-video-diffusion-img2vid-xt-1-1/resolve/main/svd_xt_1_1.safetensors"
           fi
           ls -lh models/
-          echo "VIDEO_MODEL_PATH=models/svd-1-5-q4_1.gguf" >> $GITHUB_ENV
+          echo "VIDEO_MODEL_PATH=models/svd_xt_1_1.safetensors" >> $GITHUB_ENV
 
       - name: Run Video Integration Tests
         timeout-minutes: 30
