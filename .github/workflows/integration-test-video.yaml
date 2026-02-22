@@ -1,8 +1,6 @@
 name: Integration Test - Video Generation
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       model_url:
