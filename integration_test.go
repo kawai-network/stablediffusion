@@ -353,3 +353,118 @@ func TestVideoGeneration(t *testing.T) {
 		t.Logf("Video with init image generated: %d frames", numFrames)
 	})
 }
+
+func TestWANVideoGenerationSmoke(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping WAN smoke test in short mode")
+	}
+
+	nativeDir := "native"
+	libName := LibraryName()
+	libPath := filepath.Join(nativeDir, libName)
+	if _, err := os.Stat(libPath); os.IsNotExist(err) {
+		t.Skipf("Native library not found at %s, skipping test", libPath)
+	}
+
+	wanModelPath := os.Getenv("WAN_MODEL_PATH")
+	wanVAEPath := os.Getenv("WAN_VAE_PATH")
+	wanT5Path := os.Getenv("WAN_T5_PATH")
+	wanHighNoiseModelPath := os.Getenv("WAN_HIGH_NOISE_MODEL_PATH")
+	wanClipVisionPath := os.Getenv("WAN_CLIP_VISION_PATH")
+
+	if wanModelPath == "" || wanVAEPath == "" || wanT5Path == "" {
+		t.Skip("WAN smoke test requires WAN_MODEL_PATH, WAN_VAE_PATH, and WAN_T5_PATH")
+	}
+
+	requiredPaths := map[string]string{
+		"WAN_MODEL_PATH": wanModelPath,
+		"WAN_VAE_PATH":   wanVAEPath,
+		"WAN_T5_PATH":    wanT5Path,
+	}
+
+	for env, path := range requiredPaths {
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			t.Skipf("%s file not found at %s, skipping test", env, path)
+		}
+	}
+
+	if wanHighNoiseModelPath != "" {
+		if _, err := os.Stat(wanHighNoiseModelPath); os.IsNotExist(err) {
+			t.Skipf("WAN_HIGH_NOISE_MODEL_PATH file not found at %s, skipping test", wanHighNoiseModelPath)
+		}
+	}
+
+	if wanClipVisionPath != "" {
+		if _, err := os.Stat(wanClipVisionPath); os.IsNotExist(err) {
+			t.Skipf("WAN_CLIP_VISION_PATH file not found at %s, skipping test", wanClipVisionPath)
+		}
+	}
+
+	sd, err := New(LibraryConfig{
+		LibPath: nativeDir,
+	})
+	if err != nil {
+		t.Fatalf("Failed to load library: %v", err)
+	}
+	defer sd.Close()
+
+	var ctxParams SDContextParams
+	sd.ContextParamsInit(&ctxParams)
+
+	ctxParams.DiffusionModelPath = CString(wanModelPath)
+	ctxParams.HighNoiseDiffusionModelPath = CString(wanHighNoiseModelPath)
+	ctxParams.VAEPath = CString(wanVAEPath)
+	ctxParams.T5XXLPath = CString(wanT5Path)
+	ctxParams.ClipVisionPath = CString(wanClipVisionPath)
+	ctxParams.NThreads = -1
+	ctxParams.EnableMmap = true
+	ctxParams.DiffusionFlashAttn = true
+	ctxParams.FlowShift = 3.0
+
+	t.Logf("Creating WAN context with diffusion model: %s", wanModelPath)
+
+	ctx, err := sd.NewContext(&ctxParams)
+	if err != nil {
+		t.Fatalf("Failed to create WAN context: %v", err)
+	}
+	defer ctx.Free()
+
+	var vidParams SDVidGenParams
+	sd.VidGenParamsInit(&vidParams)
+
+	vidParams.Prompt = CString("a lovely cat")
+	vidParams.NegativePrompt = CString("blurry, low quality")
+	vidParams.Width = 832
+	vidParams.Height = 480
+	vidParams.VideoFrames = 2
+	vidParams.Seed = 42
+
+	sd.SampleParamsInit(&vidParams.SampleParams)
+	vidParams.SampleParams.SampleMethod = EulerSampleMethod
+	vidParams.SampleParams.Scheduler = DiscreteScheduler
+	vidParams.SampleParams.SampleSteps = 8
+	vidParams.SampleParams.Guidance.TxtCfg = 6.0
+
+	if wanHighNoiseModelPath != "" {
+		sd.SampleParamsInit(&vidParams.HighNoiseSampleParams)
+		vidParams.HighNoiseSampleParams.SampleMethod = EulerSampleMethod
+		vidParams.HighNoiseSampleParams.Scheduler = DiscreteScheduler
+		vidParams.HighNoiseSampleParams.SampleSteps = 8
+		vidParams.HighNoiseSampleParams.Guidance.TxtCfg = 3.5
+	}
+
+	t.Logf("Generating WAN smoke video: %d frames at %dx%d", vidParams.VideoFrames, vidParams.Width, vidParams.Height)
+
+	frames, numFrames := ctx.GenerateVideo(&vidParams)
+	if numFrames == 0 {
+		t.Fatal("WAN video generation returned 0 frames")
+	}
+	if frames == nil {
+		t.Fatal("WAN video generation returned nil frames")
+	}
+	if frames[0].Data == nil {
+		t.Fatal("WAN video generation returned frame with nil data")
+	}
+
+	t.Logf("✓ WAN smoke generation succeeded: %d frames", numFrames)
+}
