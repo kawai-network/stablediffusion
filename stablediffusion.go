@@ -377,10 +377,10 @@ type StableDiffusion struct {
 	generateVideo            func(ctx unsafe.Pointer, params *SDVidGenParams, numFramesOut *int32) *SDImage
 	newUpscalerContext       func(esrganPath *uint8, offloadParamsToCPU bool, direct bool, nThreads int32, tileSize int32) unsafe.Pointer
 	freeUpscalerContext      func(ctx unsafe.Pointer)
-	upscale                  func(ctx unsafe.Pointer, inputImage SDImage, upscaleFactor uint32) SDImage
+	upscale                  func(ctx unsafe.Pointer, inputImage *SDImage, upscaleFactor uint32) *SDImage
 	getUpscaleFactor         func(ctx unsafe.Pointer) int32
 	convert                  func(inputPath *uint8, vaePath *uint8, outputPath *uint8, outputType SDType, tensorTypeRules *uint8, convertName bool) bool
-	preprocessCanny          func(image SDImage, highThreshold float32, lowThreshold float32, weak float32, strong float32, inverse bool) bool
+	preprocessCanny          func(image *SDImage, highThreshold float32, lowThreshold float32, weak float32, strong float32, inverse bool) bool
 	sdCommit                 func() *uint8
 	sdVersion                func() *uint8
 }
@@ -673,7 +673,7 @@ func (sd *StableDiffusion) CacheParamsInit(params *SDCacheParams) {
 
 // PreprocessCanny preprocesses image with Canny edge detection
 func (sd *StableDiffusion) PreprocessCanny(image SDImage, highThreshold, lowThreshold, weak, strong float32, inverse bool) bool {
-	return sd.preprocessCanny(image, highThreshold, lowThreshold, weak, strong, inverse)
+	return sd.preprocessCanny(&image, highThreshold, lowThreshold, weak, strong, inverse)
 }
 
 // Convenience variables for package-level access (requires library to be loaded)
@@ -743,7 +743,7 @@ func PreprocessCanny(image SDImage, highThreshold, lowThreshold, weak, strong fl
 	if defaultSD == nil {
 		return false
 	}
-	return defaultSD.preprocessCanny(image, highThreshold, lowThreshold, weak, strong, inverse)
+	return defaultSD.preprocessCanny(&image, highThreshold, lowThreshold, weak, strong, inverse)
 }
 
 // Convert converts model using default instance
@@ -778,7 +778,7 @@ func (ctx *UpscalerContext) Free() {
 
 // Upscale upscales an image
 func (ctx *UpscalerContext) Upscale(inputImage SDImage, upscaleFactor uint32) SDImage {
-	return ctx.sd.upscale(ctx.ptr, inputImage, upscaleFactor)
+	return *ctx.sd.upscale(ctx.ptr, &inputImage, upscaleFactor)
 }
 
 // GetUpscaleFactor gets the upscale factor
