@@ -14,6 +14,13 @@ func configureVideoContextParams(t *testing.T, params *SDContextParams, videoMod
 	// DiffusionModelPath is kept for GGUF diffusion-only checkpoints.
 	if strings.HasSuffix(strings.ToLower(videoModelPath), ".safetensors") {
 		params.ModelPath = CString(videoModelPath)
+		videoClipVisionPath := os.Getenv("VIDEO_CLIP_VISION_PATH")
+		if videoClipVisionPath != "" {
+			if _, err := os.Stat(videoClipVisionPath); os.IsNotExist(err) {
+				t.Fatalf("VIDEO_CLIP_VISION_PATH file not found at %s", videoClipVisionPath)
+			}
+			params.ClipVisionPath = CString(videoClipVisionPath)
+		}
 		videoVAEPath := os.Getenv("VIDEO_VAE_PATH")
 		if videoVAEPath == "" {
 			t.Fatalf("VIDEO_VAE_PATH is required when VIDEO_MODEL_PATH is a safetensors checkpoint: %s", videoModelPath)
@@ -27,7 +34,8 @@ func configureVideoContextParams(t *testing.T, params *SDContextParams, videoMod
 	}
 
 	params.NThreads = -1
-	params.WType = SDTypeF32
+	// Keep default/auto weight type selection for large video checkpoints.
+	params.WType = SDTypeCount
 }
 
 func TestIntegration(t *testing.T) {

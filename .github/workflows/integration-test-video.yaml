@@ -10,6 +10,10 @@ on:
         description: "Optional URL for VAE when using safetensors video checkpoint"
         required: false
         default: ""
+      clip_vision_url:
+        description: "Optional URL for clip_vision encoder (needed by some video checkpoints)"
+        required: false
+        default: ""
       hf_token:
         description: "Optional Hugging Face token for gated/private model URLs"
         required: false
@@ -92,15 +96,24 @@ jobs:
             exit 1
           fi
           VAE_URL="${{ github.event.inputs.vae_url }}"
+          CLIP_VISION_URL="${{ github.event.inputs.clip_vision_url }}"
           # Auto-derive a valid VAE URL for known SVD XT 1.1 safetensors model.
           if [[ -z "$VAE_URL" && "$MODEL_URL" == *"vdo/stable-video-diffusion-img2vid-xt-1-1/resolve/main/svd_xt_1_1.safetensors"* ]]; then
             VAE_URL="https://huggingface.co/vdo/stable-video-diffusion-img2vid-xt-1-1/resolve/main/vae/diffusion_pytorch_model.safetensors"
           fi
+          # Auto-derive clip_vision for known SVD XT 1.1 safetensors model.
+          if [[ -z "$CLIP_VISION_URL" && "$MODEL_URL" == *"vdo/stable-video-diffusion-img2vid-xt-1-1/resolve/main/svd_xt_1_1.safetensors"* ]]; then
+            CLIP_VISION_URL="https://huggingface.co/vdo/stable-video-diffusion-img2vid-xt-1-1/resolve/main/image_encoder/model.safetensors"
+          fi
           echo "MODEL_URL=$MODEL_URL" >> $GITHUB_ENV
           echo "VAE_URL=$VAE_URL" >> $GITHUB_ENV
+          echo "CLIP_VISION_URL=$CLIP_VISION_URL" >> $GITHUB_ENV
           echo "Using model URL source: $MODEL_URL"
           if [[ -n "$VAE_URL" ]]; then
             echo "Using VAE URL source: $VAE_URL"
+          fi
+          if [[ -n "$CLIP_VISION_URL" ]]; then
+            echo "Using clip_vision URL source: $CLIP_VISION_URL"
           fi
 
       - name: Download Test Model
@@ -145,6 +158,28 @@ jobs:
           fi
           ls -lh models/
           echo "VIDEO_VAE_PATH=$VAE_PATH" >> $GITHUB_ENV
+
+      - name: Download Video Clip Vision (optional)
+        if: env.CLIP_VISION_URL != ''
+        shell: bash
+        run: |
+          echo "Downloading video clip_vision..."
+          mkdir -p models
+          CLIP_VISION_FILENAME="$(basename "${CLIP_VISION_URL%%\?*}")"
+          if [[ -z "$CLIP_VISION_FILENAME" || "$CLIP_VISION_FILENAME" == "." || "$CLIP_VISION_FILENAME" == "/" ]]; then
+            CLIP_VISION_FILENAME="test-video-clip-vision"
+          fi
+          CLIP_VISION_PATH="models/$CLIP_VISION_FILENAME"
+          if [[ -n "${{ github.event.inputs.hf_token }}" ]]; then
+            curl --fail --location --retry 3 \
+              -H "Authorization: Bearer ${{ github.event.inputs.hf_token }}" \
+              -o "$CLIP_VISION_PATH" "$CLIP_VISION_URL"
+          else
+            curl --fail --location --retry 3 \
+              -o "$CLIP_VISION_PATH" "$CLIP_VISION_URL"
+          fi
+          ls -lh models/
+          echo "VIDEO_CLIP_VISION_PATH=$CLIP_VISION_PATH" >> $GITHUB_ENV
 
       - name: Run Video Integration Tests
         timeout-minutes: 30
